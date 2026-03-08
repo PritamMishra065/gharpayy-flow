@@ -16,11 +16,13 @@ interface Props {
   leadStatus?: string;
 }
 
-const ConversationChat = ({ leadId, leadName }: Props) => {
+const ConversationChat = ({ leadId, leadName, leadBudget, leadLocation, leadStatus }: Props) => {
   const { data: messages, isLoading } = useConversationMessages(leadId);
   const sendMessage = useSendMessage();
   const { data: templates } = useMessageTemplates();
   const [text, setText] = useState('');
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const handleSend = async () => {
     if (!text.trim() || !leadId) return;
@@ -30,6 +32,29 @@ const ConversationChat = ({ leadId, leadName }: Props) => {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
+
+  const handleSuggestReply = async () => {
+    setAiLoading(true);
+    setAiSuggestions([]);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-suggest-reply', {
+        body: {
+          messages: messages?.slice(-5),
+          leadName,
+          leadBudget: leadBudget || '',
+          leadLocation: leadLocation || '',
+          leadStatus: leadStatus || 'new',
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAiSuggestions(data.suggestions || []);
+    } catch (e: any) {
+      toast.error(e.message || 'AI suggestion failed');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   if (!leadId) {
