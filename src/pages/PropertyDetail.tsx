@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { usePublicProperty, useCreateReservation, useConfirmReservation, useSimilarProperties, useSubmitPropertyInquiry } from '@/hooks/usePublicData';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
 import PersistentPropertyChat from '@/components/PersistentPropertyChat';
 import NearbyLandmarks from '@/components/NearbyLandmarks';
 
@@ -38,6 +39,20 @@ export default function PropertyDetail() {
   const [tourForm, setTourForm] = useState({ name: '', phone: '', email: '', slot: '' });
   const [reservationResult, setReservationResult] = useState<any>(null);
   const [heroIdx, setHeroIdx] = useState(0);
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   const { data: similarProperties } = useSimilarProperties(property?.area, property?.city, propertyId);
 
@@ -98,15 +113,58 @@ export default function PropertyDetail() {
   const handleConfirmPayment = async () => {
     if (!reservationResult?.reservation_id) return;
     try {
-      await confirmReservation.mutateAsync({
-        reservation_id: reservationResult.reservation_id,
-        payment_reference: 'SIM_' + Date.now(),
+      // 1. Load Razorpay script
+      const isScriptLoaded = await loadRazorpayScript();
+      if (!isScriptLoaded) {
+        toast.error('Razorpay SDK failed to load. Are you online?');
+        return;
+      }
+
+      // 2. Create Razorpay order via Edge Function
+      const { data: orderData, error: orderError } = await supabase.functions.invoke('create-razorpay-order', {
+        body: { amount: 1000, receipt: reservationResult.reservation_id }
       });
-      toast.success('Booking confirmed! Our team will contact you shortly.');
-      setActionMode(null);
-      setReservationResult(null);
+
+      if (orderError || !orderData) {
+        throw new Error('Could not initialize payment wrapper. Try again later.');
+      }
+
+      // 3. Open Razorpay Checkout Modal
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_SSOOAxq5Rb09aC',
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'Gharpayy',
+        description: 'Reservation Fee',
+        order_id: orderData.id,
+        handler: async function (response: any) {
+          try {
+            await confirmReservation.mutateAsync({
+              reservation_id: reservationResult.reservation_id,
+              payment_reference: response.razorpay_payment_id,
+            });
+            toast.success('Booking confirmed! Our team will contact you shortly.');
+            setActionMode(null);
+            setReservationResult(null);
+          } catch (e: any) {
+            toast.error(e.message || 'Payment success but confirmation failed. Contact support.');
+          }
+        },
+        prefill: {
+          name: customerForm.name,
+          email: customerForm.email,
+          contact: customerForm.phone
+        },
+        theme: {
+          color: '#hsl(25, 95%, 53%)'
+        }
+      };
+
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.open();
+
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e.message || 'Something went wrong during checkout.');
     }
   };
 
