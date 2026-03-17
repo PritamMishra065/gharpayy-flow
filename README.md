@@ -57,5 +57,37 @@ Run the application in development mode:
 npm run dev
 ```
 
-The application will launch and you can view it in your browser, typically at `http://localhost:8080` (or another port specified in the terminal output).
+### 6. Backend & Supabase Edge Functions Setup
 
+This project utilizes Supabase Edge Functions for secure operations like **Razorpay Payments**. To run and test these functions locally or deploy them:
+
+1. **Install Supabase CLI**:
+   Ensure you have the Supabase CLI installed on your machine.
+   ```sh
+   npm install -g supabase
+   ```
+2. **Link Your Project**:
+   ```sh
+   supabase login
+   supabase link --project-ref your_project_id_here
+   ```
+3. **Configure Edge Function Secrets**:
+   The `create-razorpay-order` edge function requires Razorpay API credentials. Set these in your Supabase project vault:
+   ```sh
+   npx supabase secrets set RAZORPAY_KEY_ID="your_razorpay_key_id" RAZORPAY_KEY_SECRET="your_razorpay_key_secret"
+   ```
+4. **Deploy Edge Functions**:
+   Deploy the function to your linked project, circumventing JWT requirements for public guest checkout:
+   ```sh
+   npx supabase functions deploy create-razorpay-order --no-verify-jwt
+   ```
+
+### 7. Razorpay Integration (Frontend)
+
+To ensure the checkout flow works on your local environment, you must also add your test Razorpay Key ID to the `.env` file created in Step 4:
+
+```env
+VITE_RAZORPAY_KEY_ID="rzp_test_SSOOAxq5Rb09aC"
+```
+
+The application will launch and you can view it in your browser, typically at `http://localhost:8080` (or another port specified in the terminal output).
