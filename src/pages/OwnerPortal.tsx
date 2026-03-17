@@ -125,7 +125,7 @@ const BOOKING_COLORS: Record<string, string> = {
 
 export default function OwnerPortal() {
   const navigate = useNavigate();
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, userContext } = useAuth();
   const { data: owner, isLoading: ownerLoading, error: ownerError } = useOwnerByUser(user?.id);
   const { data: properties } = useOwnerProperties(owner?.id);
   const propertyIds = properties?.map((p: any) => p.id) || [];
@@ -144,10 +144,37 @@ export default function OwnerPortal() {
     }
   }, [authLoading, user, navigate]);
 
+  const handleSwitchOwnerAccount = async () => {
+    await signOut();
+    navigate('/auth?redirect=/owner-portal', { replace: true });
+  };
+
   if (authLoading || ownerLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Loading owner portal...</div>
+      </div>
+    );
+  }
+
+  if (user && !userContext.isOwner) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="max-w-md w-full mx-4">
+          <CardContent className="p-8 text-center">
+            <AlertTriangle size={40} className="mx-auto mb-4 text-warning" />
+            <h2 className="text-xl font-semibold mb-2">Owner account required</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              You are logged in with a non-owner account. Sign out and log in with the correct owner account to open the owner portal.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button variant="outline" onClick={() => navigate('/')}>Go Home</Button>
+              <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => void handleSwitchOwnerAccount()}>
+                Sign out and login as owner
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -160,11 +187,11 @@ export default function OwnerPortal() {
             <AlertTriangle size={40} className="mx-auto mb-4 text-warning" />
             <h2 className="text-xl font-semibold mb-2">No Owner Account Found</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Your account is not linked to any property owner profile. Please contact the Gharpayy team to set up your owner account.
+              This login is marked as an owner account, but it is not yet linked to any owner profile. You can sign out and try another owner login, or contact the Gharpayy team to finish setup.
             </p>
             <div className="flex gap-3 justify-center">
               <Button variant="outline" onClick={() => navigate('/')}>Go Home</Button>
-              <Button onClick={() => signOut()}>Sign Out</Button>
+              <Button onClick={() => void handleSwitchOwnerAccount()}>Sign Out</Button>
             </div>
           </CardContent>
         </Card>
@@ -221,7 +248,7 @@ export default function OwnerPortal() {
               <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
                 <Home size={16} className="mr-1" /> Home
               </Button>
-              <Button variant="outline" size="sm" onClick={() => signOut()}>
+              <Button variant="outline" size="sm" onClick={() => void handleSwitchOwnerAccount()}>
                 <LogOut size={14} className="mr-1" /> Sign Out
               </Button>
             </div>

@@ -9,10 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { usePublicProperty, useCreateReservation, useConfirmReservation, useSimilarProperties } from '@/hooks/usePublicData';
+import { usePublicProperty, useCreateReservation, useConfirmReservation, useSimilarProperties, useSubmitPropertyInquiry } from '@/hooks/usePublicData';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import PropertyChat from '@/components/PropertyChat';
+import PersistentPropertyChat from '@/components/PersistentPropertyChat';
 import NearbyLandmarks from '@/components/NearbyLandmarks';
 
 const AMENITY_ICONS: Record<string, any> = {
@@ -27,12 +27,15 @@ export default function PropertyDetail() {
   const { data: property, isLoading } = usePublicProperty(propertyId);
   const createReservation = useCreateReservation();
   const confirmReservation = useConfirmReservation();
+  const submitInquiry = useSubmitPropertyInquiry();
 
   const [actionMode, setActionMode] = useState<ActionMode>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [selectedBed, setSelectedBed] = useState<any>(null);
   const [customerForm, setCustomerForm] = useState({ name: '', phone: '', email: '', moveInDate: '' });
+  const [visitForm, setVisitForm] = useState({ name: '', phone: '', email: '', date: '', time: '' });
+  const [tourForm, setTourForm] = useState({ name: '', phone: '', email: '', slot: '' });
   const [reservationResult, setReservationResult] = useState<any>(null);
   const [heroIdx, setHeroIdx] = useState(0);
 
@@ -104,6 +107,55 @@ export default function PropertyDetail() {
       setReservationResult(null);
     } catch (e: any) {
       toast.error(e.message);
+    }
+  };
+
+  const handleScheduleVisit = async () => {
+    if (!propertyId || !visitForm.name.trim() || !visitForm.phone.trim() || !visitForm.date || !visitForm.time) {
+      toast.error('Please fill in all visit details.');
+      return;
+    }
+
+    try {
+      await submitInquiry.mutateAsync({
+        property_id: propertyId,
+        inquiry_type: 'schedule_visit',
+        customer_name: visitForm.name.trim(),
+        customer_phone: visitForm.phone.trim(),
+        customer_email: visitForm.email.trim() || undefined,
+        requested_at: new Date(`${visitForm.date}T${visitForm.time}`).toISOString(),
+        requested_slot: visitForm.time,
+        message: `Customer requested an in-person visit for ${visitForm.date} at ${visitForm.time}.`,
+      });
+      toast.success("Visit request submitted. Our team will confirm it shortly.");
+      setActionMode(null);
+      setVisitForm({ name: '', phone: '', email: '', date: '', time: '' });
+    } catch (error: any) {
+      toast.error(error.message || 'Could not submit visit request');
+    }
+  };
+
+  const handleVirtualTour = async () => {
+    if (!propertyId || !tourForm.name.trim() || !tourForm.phone.trim() || !tourForm.slot) {
+      toast.error('Please fill in all virtual tour details.');
+      return;
+    }
+
+    try {
+      await submitInquiry.mutateAsync({
+        property_id: propertyId,
+        inquiry_type: 'virtual_tour',
+        customer_name: tourForm.name.trim(),
+        customer_phone: tourForm.phone.trim(),
+        customer_email: tourForm.email.trim() || undefined,
+        requested_slot: tourForm.slot,
+        message: `Customer requested a virtual tour for slot: ${tourForm.slot}.`,
+      });
+      toast.success('Virtual tour request submitted. We will send the link shortly.');
+      setActionMode(null);
+      setTourForm({ name: '', phone: '', email: '', slot: '' });
+    } catch (error: any) {
+      toast.error(error.message || 'Could not book virtual tour');
     }
   };
 
@@ -384,7 +436,7 @@ export default function PropertyDetail() {
       </div>
 
       {/* Chat Widget */}
-      <PropertyChat propertyName={property.name} isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+      <PersistentPropertyChat propertyId={property.id} propertyName={property.name} isOpen={chatOpen} onClose={() => setChatOpen(false)} />
 
       {/* Pre-Book Dialog */}
       <Dialog open={actionMode === 'pre_book'} onOpenChange={(o) => { if (!o) { setActionMode(null); setReservationResult(null); } }}>
@@ -440,21 +492,28 @@ export default function PropertyDetail() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Schedule a Visit</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Your Name</Label><Input placeholder="Full name" /></div>
-            <div><Label>Phone</Label><Input placeholder="+91..." /></div>
-            <div><Label>Preferred Date</Label><Input type="date" /></div>
+            <div><Label>Your Name</Label><Input placeholder="Full name" value={visitForm.name} onChange={(e) => setVisitForm((prev) => ({ ...prev, name: e.target.value }))} /></div>
+            <div><Label>Phone</Label><Input placeholder="+91..." value={visitForm.phone} onChange={(e) => setVisitForm((prev) => ({ ...prev, phone: e.target.value }))} /></div>
+            <div><Label>Email</Label><Input placeholder="Optional" value={visitForm.email} onChange={(e) => setVisitForm((prev) => ({ ...prev, email: e.target.value }))} /></div>
+            <div><Label>Preferred Date</Label><Input type="date" value={visitForm.date} onChange={(e) => setVisitForm((prev) => ({ ...prev, date: e.target.value }))} /></div>
             <div><Label>Preferred Time</Label>
-              <Select>
+              <Select value={visitForm.time} onValueChange={(value) => setVisitForm((prev) => ({ ...prev, time: value }))}>
                 <SelectTrigger><SelectValue placeholder="Select time slot" /></SelectTrigger>
                 <SelectContent>
-                  {['10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM', '6:00 PM'].map(t => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  {[
+                    { label: '10:00 AM', value: '10:00' },
+                    { label: '12:00 PM', value: '12:00' },
+                    { label: '2:00 PM', value: '14:00' },
+                    { label: '4:00 PM', value: '16:00' },
+                    { label: '6:00 PM', value: '18:00' },
+                  ].map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => { toast.success("Visit request submitted! We'll confirm shortly."); setActionMode(null); }}>
-              Request Visit
+            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handleScheduleVisit} disabled={submitInquiry.isPending}>
+              {submitInquiry.isPending ? 'Submitting...' : 'Request Visit'}
             </Button>
           </div>
         </DialogContent>
@@ -466,10 +525,11 @@ export default function PropertyDetail() {
           <DialogHeader><DialogTitle>Book a Virtual Tour</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">See the property from the comfort of your home. A Gharpayy agent will give you a live video walkthrough.</p>
-            <div><Label>Your Name</Label><Input placeholder="Full name" /></div>
-            <div><Label>Phone / WhatsApp</Label><Input placeholder="+91..." /></div>
+            <div><Label>Your Name</Label><Input placeholder="Full name" value={tourForm.name} onChange={(e) => setTourForm((prev) => ({ ...prev, name: e.target.value }))} /></div>
+            <div><Label>Phone / WhatsApp</Label><Input placeholder="+91..." value={tourForm.phone} onChange={(e) => setTourForm((prev) => ({ ...prev, phone: e.target.value }))} /></div>
+            <div><Label>Email</Label><Input placeholder="Optional" value={tourForm.email} onChange={(e) => setTourForm((prev) => ({ ...prev, email: e.target.value }))} /></div>
             <div><Label>Preferred Slot</Label>
-              <Select>
+              <Select value={tourForm.slot} onValueChange={(value) => setTourForm((prev) => ({ ...prev, slot: value }))}>
                 <SelectTrigger><SelectValue placeholder="Select time" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today_now">Today - As soon as possible</SelectItem>
@@ -479,8 +539,8 @@ export default function PropertyDetail() {
                 </SelectContent>
               </Select>
             </div>
-            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => { toast.success('Virtual tour booked! Check WhatsApp for the link.'); setActionMode(null); }}>
-              Book Virtual Tour
+            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handleVirtualTour} disabled={submitInquiry.isPending}>
+              {submitInquiry.isPending ? 'Submitting...' : 'Book Virtual Tour'}
             </Button>
           </div>
         </DialogContent>

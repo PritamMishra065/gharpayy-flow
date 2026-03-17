@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AppErrorBoundary from "@/components/AppErrorBoundary";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
 import Pipeline from "./pages/Pipeline";
@@ -34,42 +35,44 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public customer-facing routes */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/explore" element={<Explore />} />
-            <Route path="/property/:propertyId" element={<PropertyDetail />} />
-            <Route path="/capture" element={<LeadCapture />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+      <AppErrorBoundary>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public customer-facing routes */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/explore" element={<Explore />} />
+              <Route path="/property/:propertyId" element={<PropertyDetail />} />
+              <Route path="/capture" element={<LeadCapture />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Owner-facing portal */}
-            <Route path="/owner-portal" element={<OwnerPortal />} />
+              {/* Owner-facing portal */}
+              <Route path="/owner-portal" element={<OwnerPortal />} />
 
-            {/* Internal CRM routes */}
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
-            <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
-            <Route path="/visits" element={<ProtectedRoute><Visits /></ProtectedRoute>} />
-            <Route path="/conversations" element={<ProtectedRoute><Conversations /></ProtectedRoute>} />
-            <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-            <Route path="/historical" element={<ProtectedRoute><Historical /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="/owners" element={<ProtectedRoute><Owners /></ProtectedRoute>} />
-            <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-            <Route path="/effort" element={<ProtectedRoute><EffortDashboard /></ProtectedRoute>} />
-            <Route path="/availability" element={<ProtectedRoute><Availability /></ProtectedRoute>} />
-            <Route path="/matching" element={<ProtectedRoute><Matching /></ProtectedRoute>} />
-            <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
-            <Route path="/zones" element={<ProtectedRoute><ZoneManagement /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+              {/* Internal CRM routes */}
+              <Route path="/dashboard" element={<ProtectedRoute required="crm"><Dashboard /></ProtectedRoute>} />
+              <Route path="/leads" element={<ProtectedRoute required="crm"><Leads /></ProtectedRoute>} />
+              <Route path="/pipeline" element={<ProtectedRoute required="crm"><Pipeline /></ProtectedRoute>} />
+              <Route path="/visits" element={<ProtectedRoute required="crm"><Visits /></ProtectedRoute>} />
+              <Route path="/conversations" element={<ProtectedRoute required="crm"><Conversations /></ProtectedRoute>} />
+              <Route path="/analytics" element={<ProtectedRoute required="crm"><Analytics /></ProtectedRoute>} />
+              <Route path="/historical" element={<ProtectedRoute required="crm"><Historical /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute required="crm"><SettingsPage /></ProtectedRoute>} />
+              <Route path="/owners" element={<ProtectedRoute required="crm"><Owners /></ProtectedRoute>} />
+              <Route path="/inventory" element={<ProtectedRoute required="crm"><Inventory /></ProtectedRoute>} />
+              <Route path="/effort" element={<ProtectedRoute required="crm"><EffortDashboard /></ProtectedRoute>} />
+              <Route path="/availability" element={<ProtectedRoute required="crm"><Availability /></ProtectedRoute>} />
+              <Route path="/matching" element={<ProtectedRoute required="crm"><Matching /></ProtectedRoute>} />
+              <Route path="/bookings" element={<ProtectedRoute required="crm"><Bookings /></ProtectedRoute>} />
+              <Route path="/zones" element={<ProtectedRoute required="crm"><ZoneManagement /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AppErrorBoundary>
     </AuthProvider>
   </QueryClientProvider>
 );

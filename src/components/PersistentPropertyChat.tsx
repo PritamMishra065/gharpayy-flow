@@ -37,20 +37,25 @@ const getAutoResponse = (message: string): string | null => {
   return null;
 };
 
-interface PropertyChatProps {
+interface PersistentPropertyChatProps {
   propertyId: string;
   propertyName: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function PropertyChat({ propertyId, propertyName, isOpen, onClose }: PropertyChatProps) {
+export default function PersistentPropertyChat({
+  propertyId,
+  propertyName,
+  isOpen,
+  onClose,
+}: PersistentPropertyChatProps) {
   const submitInquiry = useSubmitPropertyInquiry();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       role: 'bot',
-      text: `Hi! 👋 I'm here to help you with ${propertyName}. Ask me about rent, food, amenities, move-in process, or anything else!`,
+      text: `Hi! I'm here to help you with ${propertyName}. Share your details once and your messages will be saved for the Gharpayy team too.`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -65,30 +70,49 @@ export default function PropertyChat({ propertyId, propertyName, isOpen, onClose
 
   const quickQuestions = ['What about food?', 'Is WiFi included?', 'Security details?', 'Move-in process?'];
 
-  const sendMessage = (text: string) => {
+  const sendMessage = async (text: string) => {
     if (!text.trim()) return;
+    if (!contact.name.trim() || !contact.phone.trim()) {
+      toast.error('Please enter your name and phone so our team can follow up.');
+      return;
+    }
 
+    const trimmed = text.trim();
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      text: text.trim(),
+      text: trimmed,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-    setMessages(prev => [...prev, userMsg]);
+
+    setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const auto = getAutoResponse(text);
-      const botMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+    try {
+      await submitInquiry.mutateAsync({
+        property_id: propertyId,
+        inquiry_type: 'chat',
+        customer_name: contact.name.trim(),
+        customer_phone: contact.phone.trim(),
+        customer_email: contact.email.trim() || undefined,
+        message: trimmed,
+      });
+
+      const auto = getAutoResponse(trimmed);
+      const reply: ChatMessage = {
+        id: `${Date.now()}-reply`,
         role: auto ? 'bot' : 'agent',
-        text: auto || "Thanks for your question! I'm connecting you with a Gharpayy housing advisor who can help. They usually respond within 2 minutes. You'll also get a WhatsApp message shortly.",
+        text: auto || "Thanks, your message is now in our CRM. A Gharpayy advisor will follow up with you shortly on chat or WhatsApp.",
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages(prev => [...prev, botMsg]);
+      setMessages((prev) => [...prev, reply]);
+    } catch (error: any) {
+      toast.error(error.message || 'Could not send your message.');
+      setMessages((prev) => prev.filter((message) => message.id !== userMsg.id));
+    } finally {
       setIsTyping(false);
-    }, 800 + Math.random() * 600);
+    }
   };
 
   return (
@@ -99,9 +123,8 @@ export default function PropertyChat({ propertyId, propertyName, isOpen, onClose
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           className="fixed bottom-4 right-4 z-50 w-[380px] max-w-[calc(100vw-2rem)] bg-card border border-border rounded-2xl shadow-xl flex flex-col overflow-hidden"
-          style={{ height: 520 }}
+          style={{ height: 560 }}
         >
-          {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/30">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
@@ -119,9 +142,30 @@ export default function PropertyChat({ propertyId, propertyName, isOpen, onClose
             </button>
           </div>
 
-          {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-            {messages.map(msg => (
+            <div className="rounded-xl border border-border p-3 space-y-2 bg-secondary/30">
+              <p className="text-[11px] font-medium text-foreground">Save this chat to CRM</p>
+              <Input
+                value={contact.name}
+                onChange={(e) => setContact((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Your name"
+                className="h-9 text-sm"
+              />
+              <Input
+                value={contact.phone}
+                onChange={(e) => setContact((prev) => ({ ...prev, phone: e.target.value }))}
+                placeholder="Phone / WhatsApp"
+                className="h-9 text-sm"
+              />
+              <Input
+                value={contact.email}
+                onChange={(e) => setContact((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="Email (optional)"
+                className="h-9 text-sm"
+              />
+            </div>
+
+            {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] ${msg.role === 'user' ? '' : 'flex gap-2'}`}>
                   {msg.role !== 'user' && (
@@ -142,6 +186,7 @@ export default function PropertyChat({ propertyId, propertyName, isOpen, onClose
                 </div>
               </div>
             ))}
+
             {isTyping && (
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center">
@@ -154,31 +199,34 @@ export default function PropertyChat({ propertyId, propertyName, isOpen, onClose
             )}
           </div>
 
-          {/* Quick questions */}
           {messages.length <= 2 && (
             <div className="px-4 pb-2 flex gap-1.5 flex-wrap">
-              {quickQuestions.map(q => (
+              {quickQuestions.map((question) => (
                 <button
-                  key={q}
-                  onClick={() => sendMessage(q)}
+                  key={question}
+                  onClick={() => void sendMessage(question)}
                   className="text-[11px] px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground hover:bg-muted transition-colors"
                 >
-                  {q}
+                  {question}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Input */}
           <div className="px-3 py-2.5 border-t border-border flex gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
+              onKeyDown={(e) => e.key === 'Enter' && void sendMessage(input)}
               placeholder="Ask about this PG..."
               className="h-9 text-sm"
             />
-            <Button size="sm" className="h-9 w-9 p-0 bg-accent hover:bg-accent/90" onClick={() => sendMessage(input)}>
+            <Button
+              size="sm"
+              className="h-9 w-9 p-0 bg-accent hover:bg-accent/90"
+              onClick={() => void sendMessage(input)}
+              disabled={submitInquiry.isPending}
+            >
               <Send size={14} className="text-accent-foreground" />
             </Button>
           </div>

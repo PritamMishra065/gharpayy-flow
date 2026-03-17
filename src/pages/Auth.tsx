@@ -1,36 +1,59 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Phone, Building2, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+
+type SignupRole = 'customer' | 'owner';
 
 const Auth = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, loading: authLoading, userContext } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [email, setEmail] = useState('demo@gharpayy.com');
   const [password, setPassword] = useState('demo1234');
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [signupRole, setSignupRole] = useState<SignupRole>('customer');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const redirectTarget = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('redirect');
+  }, [location.search]);
 
-  // Auto-create demo account on first visit
-  const ensureDemoAccount = async () => {
-    const { error } = await supabase.auth.signUp({
-      email: 'demo@gharpayy.com',
-      password: 'demo1234',
-      options: { data: { full_name: 'Demo User' } },
+  const ensureDemoAccount = async (account: { email: string; password: string; metadata: Record<string, unknown> }) => {
+    await supabase.auth.signUp({
+      email: account.email,
+      password: account.password,
+      options: { data: account.metadata },
     });
-    // Ignore if already exists
   };
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(redirectTarget || userContext.defaultPath || '/explore', { replace: true });
+    }
+  }, [authLoading, navigate, redirectTarget, user, userContext.defaultPath]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Ensure demo account exists first
-    if (email === 'demo@gharpayy.com') await ensureDemoAccount();
+    const demoAccounts = [
+      { email: 'demo@gharpayy.com', password: 'demo1234', metadata: { full_name: 'Demo User', selected_role: 'customer' } },
+      { email: 'admin@gharpayy.com', password: 'admin1234', metadata: { full_name: 'Demo Admin', selected_role: 'admin' } },
+      { email: 'owner@gharpayy.com', password: 'owner1234', metadata: { full_name: 'Demo Owner', selected_role: 'owner', phone: '+919900000001', company_name: 'Demo Owner Portfolio' } },
+    ];
+    const demoAccount = demoAccounts.find((account) => account.email === email);
+    if (demoAccount) await ensureDemoAccount(demoAccount);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) toast.error(error.message);
     else toast.success('Welcome back!');
@@ -40,17 +63,28 @@ const Auth = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) { toast.error('Full name is required'); return; }
+    if (signupRole === 'owner' && !phone.trim()) { toast.error('Phone is required for owner accounts'); return; }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: {
+          full_name: fullName,
+          selected_role: signupRole,
+          phone: phone.trim() || null,
+          company_name: companyName.trim() || null,
+        },
         emailRedirectTo: window.location.origin,
       },
     });
-    if (error) toast.error(error.message);
-    else toast.success('Check your email to verify your account!');
+    if (error) {
+      toast.error(error.message);
+    } else if (data.session) {
+      toast.success(signupRole === 'owner' ? 'Owner account created successfully.' : 'Account created successfully.');
+    } else {
+      toast.success('Check your email to verify your account!');
+    }
     setLoading(false);
   };
 
@@ -141,7 +175,7 @@ const Auth = () => {
             {mode === 'login' ? 'Welcome back' : mode === 'signup' ? 'Create account' : 'Reset password'}
           </h2>
           <p className="text-xs text-muted-foreground mb-8">
-            {mode === 'login' ? 'Sign in to your CRM dashboard' : mode === 'signup' ? 'Join your team on Gharpayy' : 'Enter your email to reset password'}
+            {mode === 'login' ? 'Sign in to continue to your workspace' : mode === 'signup' ? 'Choose how you want to use Gharpayy' : 'Enter your email to reset password'}
           </p>
 
           {mode !== 'forgot' && (
@@ -159,13 +193,67 @@ const Auth = () => {
 
           <form onSubmit={mode === 'login' ? handleLogin : mode === 'signup' ? handleSignup : handleForgot} className="space-y-4">
             {mode === 'signup' && (
-              <div className="space-y-1.5">
-                <Label className="text-2xs">Full Name</Label>
-                <div className="relative">
-                  <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input className="pl-9 h-11 rounded-xl" placeholder="Your full name" value={fullName} onChange={e => setFullName(e.target.value)} />
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSignupRole('customer')}
+                    className={`rounded-xl border p-3 text-left transition-colors ${signupRole === 'customer' ? 'border-accent bg-accent/5' : 'border-border'}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Search size={15} className="text-accent" />
+                      <span className="text-sm font-medium">Find a bed</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">For residents searching PGs.</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignupRole('owner')}
+                    className={`rounded-xl border p-3 text-left transition-colors ${signupRole === 'owner' ? 'border-accent bg-accent/5' : 'border-border'}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Building2 size={15} className="text-accent" />
+                      <span className="text-sm font-medium">List property</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">For owners sharing inventory.</p>
+                  </button>
                 </div>
-              </div>
+                <div className="space-y-1.5">
+                  <Label className="text-2xs">Full Name</Label>
+                  <div className="relative">
+                    <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input className="pl-9 h-11 rounded-xl" placeholder="Your full name" value={fullName} onChange={e => setFullName(e.target.value)} />
+                  </div>
+                </div>
+                {signupRole === 'owner' && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-2xs">Phone</Label>
+                      <div className="relative">
+                        <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input className="pl-9 h-11 rounded-xl" placeholder="+91..." value={phone} onChange={e => setPhone(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-2xs">Company / Portfolio Name</Label>
+                      <div className="relative">
+                        <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input className="pl-9 h-11 rounded-xl" placeholder="Optional" value={companyName} onChange={e => setCompanyName(e.target.value)} />
+                      </div>
+                    </div>
+                  </>
+                )}
+                {signupRole === 'customer' && (
+                  <p className="text-[11px] text-muted-foreground rounded-xl border border-border p-3">
+                    Customer accounts land on PG discovery after signup. Team admins and agents should continue signing in with their existing CRM accounts.
+                  </p>
+                )}
+                {signupRole === 'owner' && (
+                  <p className="text-[11px] text-muted-foreground rounded-xl border border-border p-3">
+                    Owner accounts are linked to the owner portal automatically and will open the inventory dashboard after login.
+                  </p>
+                )}
+              </>
             )}
             <div className="space-y-1.5">
               <Label className="text-2xs">Email</Label>

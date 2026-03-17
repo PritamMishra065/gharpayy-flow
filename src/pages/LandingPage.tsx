@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { usePublicProperties } from '@/hooks/usePublicData';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import PublicAccountNav from '@/components/PublicAccountNav';
 
 const CITIES = [
   { name: 'Bangalore', tagline: '300+ PGs', active: true },
@@ -54,20 +55,19 @@ export default function LandingPage() {
       {/* Nav */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center h-16 gap-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
                 <span className="text-accent-foreground font-bold text-sm">G</span>
               </div>
               <span className="font-semibold text-lg tracking-tight text-foreground">Gharpayy</span>
             </div>
-            <div className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+            <div className="hidden md:flex items-center justify-center gap-6 text-sm text-muted-foreground">
               <button onClick={() => navigate('/explore')} className="hover:text-foreground transition-colors font-medium">Explore PGs</button>
               <button onClick={() => navigate('/owner-portal')} className="hover:text-foreground transition-colors">For Owners</button>
-              <button onClick={() => navigate('/explore')} className="hover:text-foreground transition-colors">About</button>
             </div>
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/auth')}>Login</Button>
+            <div className="flex items-center justify-end gap-3">
+              <PublicAccountNav />
               <Button size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => navigate('/explore')}>
                 Find a PG
               </Button>

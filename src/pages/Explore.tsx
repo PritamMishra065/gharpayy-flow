@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePublicProperties, useAvailableCities, useAvailableAreas, useLandmarks, type PropertyFilters } from '@/hooks/usePublicData';
 import { motion, AnimatePresence } from 'framer-motion';
+import PublicAccountNav from '@/components/PublicAccountNav';
 
 const PropertyMap = lazy(() => import('@/components/PropertyMap'));
 
@@ -136,18 +137,20 @@ export default function Explore() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-14">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center h-14 gap-4">
             <button onClick={() => navigate('/')} className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
                 <span className="text-accent-foreground font-bold text-xs">G</span>
               </div>
               <span className="font-semibold text-base tracking-tight text-foreground">Gharpayy</span>
             </button>
-            <div className="hidden md:flex items-center gap-5 text-sm text-muted-foreground">
+            <div className="hidden md:flex items-center justify-center gap-6 text-sm text-muted-foreground">
               <button className="text-foreground font-medium">Explore PGs</button>
               <button onClick={() => navigate('/owner-portal')} className="hover:text-foreground transition-colors">For Owners</button>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/auth')}>Login</Button>
+            <div className="flex justify-end">
+              <PublicAccountNav />
+            </div>
           </div>
         </div>
       </header>

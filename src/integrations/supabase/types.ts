@@ -1337,7 +1337,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_current_user_context: { Args: never; Returns: Json }
+      get_user_home_path: { Args: { _user_id?: string }; Returns: string }
       get_property_effort: { Args: { p_property_id: string }; Returns: Json }
+      has_role: { Args: { _role: Database["public"]["Enums"]["app_role"]; _user_id: string }; Returns: boolean }
       match_beds_for_lead: {
         Args: { p_budget: number; p_location: string; p_room_type?: string }
         Returns: {
@@ -1363,8 +1366,22 @@ export type Database = {
           zone_name: string
         }[]
       }
+      submit_property_inquiry: {
+        Args: {
+          p_customer_email?: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_inquiry_type: string
+          p_message?: string
+          p_property_id: string
+          p_requested_at?: string
+          p_requested_slot?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
+      app_role: "admin" | "manager" | "agent" | "owner" | "customer"
       bed_status:
         | "vacant"
         | "occupied"
@@ -1529,6 +1546,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "manager", "agent", "owner", "customer"],
       bed_status: [
         "vacant",
         "occupied",

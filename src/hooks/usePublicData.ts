@@ -173,3 +173,31 @@ export function useConfirmReservation() {
     },
   });
 }
+
+export function useSubmitPropertyInquiry() {
+  return useMutation({
+    mutationFn: async (params: {
+      property_id: string;
+      inquiry_type: 'chat' | 'schedule_visit' | 'virtual_tour';
+      customer_name: string;
+      customer_phone: string;
+      customer_email?: string;
+      message?: string;
+      requested_at?: string;
+      requested_slot?: string;
+    }) => {
+      const { data, error } = await supabase.rpc('submit_property_inquiry', {
+        p_property_id: params.property_id,
+        p_inquiry_type: params.inquiry_type,
+        p_customer_name: params.customer_name,
+        p_customer_phone: params.customer_phone,
+        p_customer_email: params.customer_email || null,
+        p_message: params.message || null,
+        p_requested_at: params.requested_at || null,
+        p_requested_slot: params.requested_slot || null,
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
