@@ -24,7 +24,7 @@ export default function Explore() {
   const [searchParams] = useSearchParams();
   const initialArea = searchParams.get('area') || '';
 
-  const [filters, setFilters] = useState<PropertyFilters>({ city: 'Bangalore', area: initialArea || undefined });
+  const [filters, setFilters] = useState<PropertyFilters>({ city: '', area: initialArea || undefined });
   const [searchQuery, setSearchQuery] = useState(initialArea);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedSharing, setSelectedSharing] = useState<string[]>([]);
@@ -171,13 +171,14 @@ export default function Explore() {
                 }}
               />
             </div>
-            <Select value={filters.city || ''} onValueChange={(v) => setFilters(f => ({ ...f, city: v }))}>
+            <Select value={filters.city || '__all__'} onValueChange={(v) => setFilters(f => ({ ...f, city: v === '__all__' ? '' : v }))}>
               <SelectTrigger className="w-full sm:w-44 h-11">
                 <MapPin size={14} className="mr-1 text-muted-foreground" />
-                <SelectValue placeholder="City" />
+                <SelectValue placeholder="All Cities" />
               </SelectTrigger>
               <SelectContent>
-                {(cities || ['Bangalore']).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                <SelectItem value="__all__">All Cities</SelectItem>
+                {(cities || []).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
             <Button variant="outline" className="h-11 gap-2" onClick={() => setShowFilters(!showFilters)}>
