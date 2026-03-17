@@ -87,7 +87,7 @@ This project utilizes Supabase Edge Functions for secure operations like **Razor
 To ensure the checkout flow works on your local environment, you must also add your test Razorpay Key ID to the `.env` file created in Step 4:
 
 ```env
-VITE_RAZORPAY_KEY_ID="rzp_test_SSOOAxq5Rb09aC"
+VITE_RAZORPAY_KEY_ID="rzp_test_#####"
 ```
 
 The application will launch and you can view it in your browser, typically at `http://localhost:8080` (or another port specified in the terminal output).
